@@ -56,6 +56,30 @@ More detail: [accuracy review](docs/ACCURACY_REVIEW.md), [judging guide](docs/JU
 
 The visual system is documented in [DESIGN.md](DESIGN.md). In short: a deep-space dark theme whose palette came from a Google Stitch design system, one blue accent, green and red reserved for status, IBM Plex type, NASA photography in each page header, and motion used only where it explains something (replay, screening progress, step diagrams). All motion is disabled for users who prefer reduced motion.
 
+## Prerequisite labs (completed on LinuxONE)
+
+Both IBM AI/ML labs from [linuxone-community-cloud/jupyter-lab-ml](https://github.com/linuxone-community-cloud/jupyter-lab-ml) were run end to end on the team's LinuxONE VM, inside IBM's Jupyter Lab container, on 17 October 2026. Executed notebooks and details are in [docs/labs/](docs/labs/README.md).
+
+| Lab | Notebook | Result on LinuxONE |
+|---|---|---|
+| 1. Predictive AI, multi-model | [Churn_Scikit_PyTorch](docs/labs/Churn_Scikit_PyTorch_executed_on_LinuxONE.ipynb): scikit-learn Random Forest (exported to PMML) and a PyTorch classifier | 31/31 cells, 0 errors, 18 s |
+| 2. Predictive AI + Generative AI | [Loan_Approval_Demo](docs/labs/Loan_Approval_Demo_executed_on_LinuxONE.ipynb): IBM Granite LLM (llama.cpp with zDNN/NNPA) extracts features, XGBoost scores risk, BM25 retrieves policy, the LLM writes the recommendation | 9/9 cells, 0 errors, 65 s |
+
+<table>
+<tr>
+<td width="50%"><img src="docs/labs/screenshots/0_environment_check.png" alt="LinuxONE environment check"/><br/><sub><b>Environment check.</b> Inside the lab container: s390x, IBM/S390, machine type 9175.</sub></td>
+<td width="50%"><img src="docs/labs/screenshots/1_churn_top.png" alt="Lab 1 churn notebook"/><br/><sub><b>Lab 1.</b> Churn notebook running in Jupyter Lab on LinuxONE.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/labs/screenshots/1_churn_correlations.png" alt="Lab 1 correlations"/><br/><sub><b>Lab 1.</b> Exploring churn drivers.</sub></td>
+<td width="50%"><img src="docs/labs/screenshots/1_churn_pytorch_training.png" alt="Lab 1 PyTorch training"/><br/><sub><b>Lab 1.</b> PyTorch classifier training on s390x.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/labs/screenshots/2_loan_zdnn.png" alt="Lab 2 zDNN build"/><br/><sub><b>Lab 2.</b> llama.cpp built with zDNN/NNPA and the IBM Granite model.</sub></td>
+<td width="50%"><img src="docs/labs/screenshots/2_loan_risk_and_recommendation.png" alt="Lab 2 risk and recommendation"/><br/><sub><b>Lab 2.</b> LLM feature extraction, then the XGBoost risk score (Low Risk, p = 0.997).</sub></td>
+</tr>
+</table>
+
 ## Results (measured on LinuxONE s390x)
 
 The table below is the full LinuxONE pipeline run. For the later corrected predictor, fresh confidence intervals and regression run, see [the accuracy review](docs/ACCURACY_REVIEW.md).
