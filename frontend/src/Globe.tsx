@@ -10,6 +10,7 @@ import { feature } from 'topojson-client';
 import type { Topology } from 'topojson-specification';
 import landTopology from 'world-atlas/land-110m.json';
 import { Minus, Plus, RotateCcw } from 'lucide-react';
+import blueMarble from './assets/imagery/blue-marble.webp';
 
 /** Earth-centred inertial position in kilometres. */
 export type Vec3 = [number, number, number];
@@ -87,9 +88,21 @@ export default function Globe({orbits, markers, focus, height = 460, label, fitR
     };
     const observer = new ResizeObserver(resize);
     observer.observe(element);
-    const media = matchMedia('(prefers-color-scheme: dark)');
-    const retheme = () => {const t = readTheme(); const material = earth.material as THREE.MeshBasicMaterial; material.map?.dispose(); material.map = earthTexture(t.ocean, t.land, t.grid); material.needsUpdate = true;};
-    media.addEventListener('change', retheme);
+    // The vector map shows immediately; NASA's Blue Marble photo replaces it once loaded.
+    let disposed = false;
+    new THREE.TextureLoader().load(blueMarble, photo => {
+      if (disposed) {photo.dispose(); return;}
+      photo.colorSpace = THREE.SRGBColorSpace; photo.anisotropy = 4;
+      const material = earth.material as THREE.MeshBasicMaterial;
+      material.map?.dispose(); material.map = photo; material.color.set(0xc4cfe2); material.needsUpdate = true;
+    });
+    // A thin atmosphere rim: brighter toward the limb, transparent facing the camera.
+    const atmosphere = new THREE.Mesh(new THREE.SphereGeometry(1.025, 64, 48), new THREE.ShaderMaterial({
+      transparent: true, side: THREE.BackSide, depthWrite: false,
+      vertexShader: 'varying vec3 vN; varying vec3 vV; void main() { vN = normalize(normalMatrix * normal); vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
+      fragmentShader: 'varying vec3 vN; varying vec3 vV; void main() { float rim = pow(1.0 - abs(dot(vN, vV)), 3.0); gl_FragColor = vec4(0.42, 0.66, 1.0, rim * 0.55); }',
+    }));
+    scene.add(atmosphere);
 
     let frame = 0;
     const toCamera = new THREE.Vector3();
@@ -121,7 +134,7 @@ export default function Globe({orbits, markers, focus, height = 460, label, fitR
     return () => {
       cancelAnimationFrame(frame);
       observer.disconnect();
-      media.removeEventListener('change', retheme);
+      disposed = true;
       controls.dispose();
       renderer.dispose();
       scene.traverse(o => {const mesh = o as THREE.Mesh; mesh.geometry?.dispose?.(); const m = mesh.material as THREE.Material | undefined; m?.dispose?.();});

@@ -2,31 +2,63 @@
 
 **Avoiding one satellite should not put another in danger.**
 
-OrbitGuard is an operator decision-support console for satellite close approaches, running on **IBM LinuxONE (s390x)**. It has two parts, each with its own evidence:
+OrbitGuard is a decision-support console for satellite close approaches, built and deployed on **IBM LinuxONE (s390x)** for the IBM Z Datathon 2026 (theme: *Real-Time AI for Critical Decisions*). It forecasts collision risk from real ESA conjunction alerts, and it screens avoidance burns against *every* nearby object, so a manoeuvre that dodges one object does not steer into another.
 
-1. **Encounters:** replays historical ESA conjunction alerts. It forecasts the later reported collision risk and ranks encounters for analyst triage. It is evaluated on the held-out ESA Collision Avoidance Challenge test set.
-2. **Manoeuvre planning:** a synthetic orbital neighbourhood. It screens 37 candidate burns against *every* nearby object, rejects burns that create a secondary hazard, and recommends the lowest-Δv acceptable option. It abstains when no candidate is acceptable.
+![Encounters: replay ESA conjunction alerts and compare forecasts](docs/screenshots/01-encounters.png)
 
-A **Validation** page renders every metric directly from generated artifacts. No number in the UI is typed by hand.
+## Highlights
 
-The accuracy and safety review adds regression fixes, confidence intervals, missed-alert inspection, downloadable evidence, and explicitly experimental forecasting/ranking comparisons. The original console layout is preserved; extra background lives in the optional **How it works** tab. See [the accuracy review](docs/ACCURACY_REVIEW.md) and [the judging guide](docs/JUDGING_GUIDE.md) for what the evidence supports.
+- **Real data, held-out evaluation.** 2,167 encounters from the ESA Collision Avoidance Challenge test set. The published ESA baseline loss is reproduced (0.694) before any claim is made.
+- **The failure it prevents.** On a 50-scenario stress suite, avoiding only the original object created **20 secondary hazards**. OrbitGuard created **0**, for the same mean Δv.
+- **Verified physics.** All 3 NASA CARA reference collision-probability cases pass, plus 7 invariance checks.
+- **Fast on LinuxONE.** Forecast p95 **8.5 ms**. Screening 37 candidate burns with re-verification, p95 **1.71 s**. Parallel screening is **2.77×** faster on 3 workers.
+- **Honest by construction.** Every number in the UI is read from generated evaluation artifacts. Missing results show as unavailable, never as invented values. Where the learned model loses (point forecasts), the console says so and keeps the baseline as the default.
 
-The follow-up [missed-alert improvement](docs/RECALL_IMPROVEMENT.md) adds a baseline-preserving experimental review rule, with nested validation and an explicit false-alarm comparison.
+## Screenshots
 
-The [event-to-alert replay](docs/EVENT_REPLAY.md) processes each historical update on the server, displays alert changes and measured processing/round-trip latency, and waits for each response before advancing. It is explicitly a historical replay, not a live orbital feed; synthetic manoeuvre screening remains separate.
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/02-replay.png" alt="Message-by-message replay with server timings"/><br/><sub><b>Replay.</b> Each historical message is processed on the server; the alert state and measured latency are shown per step.</sub></td>
+<td width="50%"><img src="docs/screenshots/03-encounter-orbits.png" alt="Orbits of an encounter and the population of all encounters"/><br/><sub><b>Encounter orbits and population.</b> The two orbits of the selected encounter, and all 2,167 encounters by inclination and altitude.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/screenshots/04-planning.png" alt="Manoeuvre planning recommendation and candidate strip"/><br/><sub><b>Manoeuvre planning.</b> The recommendation, the numerical re-check, and all 37 candidate burns (green acceptable, red rejected).</sub></td>
+<td width="50%"><img src="docs/screenshots/05-orbital-view.png" alt="3D orbital view and distance chart"/><br/><sub><b>Orbital view.</b> Satellite A and every tracked object over the three-hour window, with A's distance to each object.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/screenshots/06-policies-geometry.png" alt="Policy comparison and encounter geometry"/><br/><sub><b>The secondary hazard.</b> Avoiding only B passes 15 m from object C. OrbitGuard picks a burn that clears both.</sub></td>
+<td width="50%"><img src="docs/screenshots/08-policy-suite.png" alt="Policy outcomes across 50 scenarios"/><br/><sub><b>50-scenario suite.</b> Safe plans, correct abstentions and unsafe choices for each policy.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/screenshots/07-validation.png" alt="Validation page"/><br/><sub><b>Validation.</b> Held-out metrics, confidence intervals, NASA cases and runtime, all rendered from artifacts.</sub></td>
+<td width="50%"><img src="docs/screenshots/09-how-it-works.png" alt="How it works page"/><br/><sub><b>How it works.</b> The two independent evidence tracks, step by step.</sub></td>
+</tr>
+</table>
 
-Visualisations, all computed live on LinuxONE:
-- **Orbital view (3D globe):** satellite A and seven tracked objects over the 3-hour planning window. A time slider moves every object, and buttons jump to the burn or either close approach. A's path changes with the selected policy.
-- **Distance chart:** A's distance to every object over time, on a log scale. Under "Avoid B only", the dip to 15 m with C is plain to see.
-- **Encounter orbits (3D globe):** the two orbits of each historical ESA encounter, drawn from the CDM's orbit size, shape and inclination.
-- **Encounter population:** all 2,167 test encounters, by inclination and altitude of the approaching object and coloured by object type. Debris bands stand out.
-- **Validation charts:** precision–recall curves for both rankings, and policy outcomes across the 50 scenarios.
+<p align="center"><img src="docs/screenshots/10-mobile.png" alt="Mobile layout" width="260"/></p>
 
-> IBM Z Datathon 2026 · Theme: Real-Time AI for Critical Decisions · Team Datathon2
+<sub>Screenshots come from a local run of the console. Validation and How it works read the evaluation and timing artifacts produced on LinuxONE (see [docs/RESULTS.md](docs/RESULTS.md)); the header therefore shows the local machine.</sub>
 
-## Original pipeline results (measured on LinuxONE s390x)
+## What it does
 
-For the corrected predictor, fresh confidence intervals, 44-test regression run and final planner timings, use [the current accuracy review](docs/ACCURACY_REVIEW.md). The table below preserves the earlier pipeline snapshot.
+The console has four sections:
+
+1. **Encounters.** Replays historical ESA conjunction data messages (CDMs) one at a time. Using only messages issued at least 48 hours before closest approach, it forecasts the final reported collision probability and ranks encounters for analyst review. An experimental learned rule can flag extra encounters for review without changing the default forecast.
+2. **Manoeuvre planning.** A synthetic orbital neighbourhood. OrbitGuard screens 37 candidate burns against every nearby object at three uncertainty levels, rejects any burn that creates a secondary hazard, recommends the lowest-Δv acceptable option, and declines when nothing is acceptable.
+3. **Validation.** Held-out forecasting metrics with bootstrap confidence intervals, NASA reference cases, the policy stress suite, runtime on LinuxONE, and data provenance.
+4. **How it works.** A plain-language walkthrough of both tracks.
+
+Every technical term (Pc, CDM, TCA, F2, average precision and others) has a keyboard-accessible tooltip.
+
+More detail: [accuracy review](docs/ACCURACY_REVIEW.md), [judging guide](docs/JUDGING_GUIDE.md), [missed-alert improvement](docs/RECALL_IMPROVEMENT.md), [event-to-alert replay](docs/EVENT_REPLAY.md), [prerequisite labs on LinuxONE](docs/labs/README.md).
+
+## Interface design
+
+The visual system is documented in [DESIGN.md](DESIGN.md). In short: a deep-space dark theme whose palette came from a Google Stitch design system, one blue accent, green and red reserved for status, IBM Plex type, NASA photography in each page header, and motion used only where it explains something (replay, screening progress, step diagrams). All motion is disabled for users who prefer reduced motion.
+
+## Results (measured on LinuxONE s390x)
+
+The table below is the full LinuxONE pipeline run. For the later corrected predictor, fresh confidence intervals and regression run, see [the accuracy review](docs/ACCURACY_REVIEW.md).
 
 Full tables, hashes, and the pipeline log are in [docs/RESULTS.md](docs/RESULTS.md), generated by `scripts/render_results.py`.
 
@@ -55,7 +87,7 @@ flowchart LR
 
 | Layer | Stack |
 |---|---|
-| UI | React + TypeScript + Vite, Recharts, three.js globes with Natural Earth coastlines (`world-atlas`, `d3-geo`), SVG encounter geometry (`frontend/`) |
+| UI | React + TypeScript + Vite, Recharts, three.js globes with NASA Blue Marble texture, SVG encounter geometry, Lucide icons, IBM Plex type (`frontend/`) |
 | API | Flask behind Gunicorn, a systemd unit bound to loopback, gzip JSON (`orbitguard/api.py`) |
 | ML | pandas + scikit-learn `HistGradientBoostingRegressor` residual on the latest risk; event-level 3-fold CV (`orbitguard/ml/`) |
 | Physics | NumPy/SciPy `solve_ivp` (DOP853), encounter-plane Gaussian Pc, impulsive tangential burns (`orbitguard/physics/`) |
@@ -131,6 +163,7 @@ python3 scripts/linuxone.py tunnel --host <VM_IP> --key key.pem          # open 
 
 - ESA Collision Avoidance Challenge dataset, Zenodo record 4463683, **CC BY 4.0**, © European Space Agency.
 - NASA CARA Analysis Tools reference test cases (commit `ce0f007…`), with Alfano (2009) test cases. Our Pc algorithm is an independent Python implementation.
+- Interface photography: NASA, International Space Station crew (ISS045-E-13851, ISS063-E-54340, ISS074-E-301636) and Johnson Space Center (JSC2002-E-23113). Globe texture: NASA Earth Observatory, Blue Marble. NASA imagery is public domain; NASA does not endorse this project.
 
 ## Repository map
 
@@ -140,5 +173,9 @@ frontend/          React console (built to frontend/dist, served by Flask)
 tests/             API, ML (leakage/cutoff/scoring), physics (NASA + invariants)
 scripts/           linuxone.py (sync/tunnel/fetch), bootstrap, pipeline, render_results.py
 deploy/            systemd unit
-docs/              RESULTS.md, DEMO_SCRIPT.md, SUBMISSION_CHECKLIST.md, agent worklogs
+docs/              RESULTS.md, ACCURACY_REVIEW.md, JUDGING_GUIDE.md, screenshots/, labs/, worklogs
 ```
+
+## Team
+
+Built by **Team Datathon2** for the IBM Z Datathon 2026, including [@aryashmullick](https://github.com/aryashmullick) and [@bhavyapuri15](https://github.com/bhavyapuri15). The original team repository is [aryashmullick/ibmdatathon](https://github.com/aryashmullick/ibmdatathon).

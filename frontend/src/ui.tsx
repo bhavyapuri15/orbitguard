@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { Check, CircleHelp, Loader2, RefreshCw, X } from 'lucide-react';
+import type { LucideProps } from 'lucide-react';
 import { request } from './api';
 
 /** Plain-language definitions shown in tooltips wherever a term appears. */
@@ -89,4 +90,54 @@ export function useTokens() {
     return () => media.removeEventListener('change', update);
   }, []);
   return tokens;
+}
+
+export type Icon = ComponentType<LucideProps>;
+export type Tone = 'blue' | 'amber' | 'teal' | 'green' | 'red' | 'violet' | 'slate';
+/** A line icon in a small tinted tile; used beside card titles and figures. */
+export function IconTile({icon: I, tone = 'blue', size = 16}: {icon: Icon, tone?: Tone, size?: number}) {
+  return <span className={`icon-tile tone-${tone}`} aria-hidden="true"><I size={size} strokeWidth={1.75}/></span>;
+}
+/** Card title row with an icon tile. Children become the heading text. */
+export function CardTitle({icon, tone, children, sub}: {icon: Icon, tone?: Tone, children: ReactNode, sub?: ReactNode}) {
+  return <div className="card-title"><IconTile icon={icon} tone={tone}/><div><h2>{children}</h2>{sub && <p className="muted small">{sub}</p>}</div></div>;
+}
+
+const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+/** Counts up to a measured value once it arrives. The final text is exactly what `format` returns. */
+export function CountUp({value, format}: {value: number | null | undefined, format: (v: number) => string}) {
+  const [shown, setShown] = useState<number | null>(null);
+  useEffect(() => {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {setShown(null); return;}
+    if (reducedMotion()) {setShown(value); return;}
+    let frame = 0; const start = performance.now(), duration = 900;
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - start) / duration);
+      setShown(p >= 1 ? value : value * (1 - Math.pow(1 - p, 3)));
+      if (p < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [value]);
+  return <span className="count">{shown === null ? '—' : format(shown)}</span>;
+}
+
+export type HeroStat = {icon: Icon, tone?: Tone, label: ReactNode, value: ReactNode};
+/** Photographic page header. Stats must come from server data; pass '—' while loading. */
+export function Hero({image, position = 'center', eyebrow, eyebrowIcon: E, title, children, stats, action}: {image: string, position?: string, eyebrow: string, eyebrowIcon: Icon, title: string, children: ReactNode, stats?: HeroStat[], action?: ReactNode}) {
+  return <section className="hero">
+    <div className="hero-image" style={{backgroundImage: `url(${image})`, backgroundPosition: position}} aria-hidden="true"/>
+    <div className="hero-body">
+      <div className="hero-text">
+        <span className="eyebrow"><E size={14} strokeWidth={1.75} aria-hidden="true"/>{eyebrow}</span>
+        <h1>{title}</h1>
+        <p className="lead">{children}</p>
+        {action && <div className="hero-action">{action}</div>}
+      </div>
+      {stats && stats.length > 0 && <dl className="hero-stats">{stats.map((stat, i) => <div key={i} className="hero-stat" style={{animationDelay: `${120 + i * 90}ms`}}>
+        <IconTile icon={stat.icon} tone={stat.tone}/>
+        <div><dd>{stat.value}</dd><dt>{stat.label}</dt></div>
+      </div>)}</dl>}
+    </div>
+  </section>;
 }
