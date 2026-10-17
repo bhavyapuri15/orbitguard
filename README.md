@@ -176,6 +176,3 @@ deploy/            systemd unit
 docs/              RESULTS.md, ACCURACY_REVIEW.md, JUDGING_GUIDE.md, screenshots/, labs/, worklogs
 ```
 
-## Team
-
-Built by **Team Datathon2** for the IBM Z Datathon 2026, including [@aryashmullick](https://github.com/aryashmullick) and [@bhavyapuri15](https://github.com/bhavyapuri15). The original team repository is [aryashmullick/ibmdatathon](https://github.com/aryashmullick/ibmdatathon).
